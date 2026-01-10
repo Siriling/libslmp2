@@ -1620,7 +1620,9 @@ static slmp_frame_t* build_req_frame(melcli_ctx_t* ctx,
         frame->size = SLMP_FRAME_STRUCT_SIZE(data_len);
 
         frame->hdr.ftype = SLMP_FTYPE_REQ_MT;
-        frame->hdr.serial = ++(ctx->serial);
+
+        ctx->serial = (ctx->serial + 1) & 0xFFFF;
+        frame->hdr.serial = ctx->serial;
 
         frame->sub_hdr.mt.net_no = _station->net_num;
         frame->sub_hdr.mt.node_no = _station->node_num;
