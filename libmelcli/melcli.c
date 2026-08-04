@@ -1709,9 +1709,9 @@ static int receive_frame(melcli_ctx_t* ctx, int serial, slmp_frame_t** frame)
         return MELCLI_ERROR_FRAME_SERIAL_MISMATCH;
     }
 
-    if ((*frame)->hdr.ftype == SLMP_FTYPE_ERR_MT) {
+    if ((*frame)->hdr.ftype & SLMP_FTYPE_ERR_MASK) {
         if (ctx->debug) {
-            ctx->dbgprint("[ERROR] Endcode (0x%04X): %s\n", 
+            ctx->dbgprint("[ERROR] Endcode (0x%04X): %s\n",
                     (*frame)->sub_hdr.mt.un.end_code,
                     slmp_get_endcode_msg((*frame)->sub_hdr.mt.un.end_code));
         }
