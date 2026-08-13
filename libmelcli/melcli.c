@@ -10,7 +10,7 @@
 
 static int split_dev_addr(const char* addr, char* prefix, char* trailing);
 static int lookup_dev_type(const char* prefix, uint16_t* mem_type, 
-    int* unit_type);
+    int* unit_type, int* is_hex_addr);
 static int cvt_dev_addr_s(const char* addr, uint8_t* mem_type, 
     uint32_t* addr_begin, int* unit_type);
 static int cvt_dev_addr_l(const char* addr, uint16_t* mem_type, 
@@ -1434,46 +1434,47 @@ static const struct dev_type_lookup_entry {
     const char* prefix;
     uint16_t mem_type;
     int unit_type;
+    int is_hex_addr;
 } dev_type_lookup_table[] = {
-    { "SM", DEVICE_SM, UNIT_BIT },
-    { "SD", DEVICE_SD, UNIT_WORD },
-    { "X", DEVICE_X, UNIT_BIT },
-    { "Y", DEVICE_Y, UNIT_BIT },
-    { "M", DEVICE_M, UNIT_BIT },
-    { "L", DEVICE_L, UNIT_BIT },
-    { "F", DEVICE_F, UNIT_BIT },
-    { "V", DEVICE_V, UNIT_BIT },
-    { "B", DEVICE_B, UNIT_BIT },
-    { "D", DEVICE_D, UNIT_WORD },
-    { "W", DEVICE_W, UNIT_WORD },
-    { "TS", DEVICE_TS, UNIT_BIT },
-    { "TC", DEVICE_TC, UNIT_BIT },
-    { "TN", DEVICE_TN, UNIT_WORD },
-    { "LTS", DEVICE_LTS, UNIT_BIT },
-    { "LTC", DEVICE_LTC, UNIT_BIT },
-    { "LTN", DEVICE_LTN, UNIT_DWORD },
-    { "STS", DEVICE_STS, UNIT_BIT },
-    { "STC", DEVICE_STC, UNIT_BIT },
-    { "STN", DEVICE_STN, UNIT_WORD },
-    { "LSTS", DEVICE_LSTS, UNIT_BIT },
-    { "LSTC", DEVICE_LSTC, UNIT_BIT },
-    { "LSTN", DEVICE_LSTN, UNIT_DWORD },
-    { "CS", DEVICE_CS, UNIT_BIT },
-    { "CC", DEVICE_CC, UNIT_BIT },
-    { "CN", DEVICE_CN, UNIT_WORD },
-    { "LCS", DEVICE_LCS, UNIT_BIT },
-    { "LCC", DEVICE_LCC, UNIT_BIT },
-    { "LCN", DEVICE_LCN, UNIT_DWORD },
-    { "SB", DEVICE_SB, UNIT_BIT },
-    { "SW", DEVICE_SW, UNIT_WORD },
-    { "DX", DEVICE_DX, UNIT_BIT },
-    { "DY", DEVICE_DY, UNIT_BIT },
-    { "Z", DEVICE_Z, UNIT_WORD },
-    { "LZ", DEVICE_LZ, UNIT_DWORD },
-    { "R", DEVICE_R, UNIT_WORD },
-    { "ZR", DEVICE_ZR, UNIT_WORD },
-    { "RD", DEVICE_RD, UNIT_WORD },
-    { NULL, 0, 0 }
+    { "SM", DEVICE_SM, UNIT_BIT, 0 },
+    { "SD", DEVICE_SD, UNIT_WORD, 0 },
+    { "X", DEVICE_X, UNIT_BIT, 1 },
+    { "Y", DEVICE_Y, UNIT_BIT, 1 },
+    { "M", DEVICE_M, UNIT_BIT, 0 },
+    { "L", DEVICE_L, UNIT_BIT, 0 },
+    { "F", DEVICE_F, UNIT_BIT, 0 },
+    { "V", DEVICE_V, UNIT_BIT, 0 },
+    { "B", DEVICE_B, UNIT_BIT, 1 },
+    { "D", DEVICE_D, UNIT_WORD, 0 },
+    { "W", DEVICE_W, UNIT_WORD, 1 },
+    { "TS", DEVICE_TS, UNIT_BIT, 0 },
+    { "TC", DEVICE_TC, UNIT_BIT, 0 },
+    { "TN", DEVICE_TN, UNIT_WORD, 0 },
+    { "LTS", DEVICE_LTS, UNIT_BIT, 0 },
+    { "LTC", DEVICE_LTC, UNIT_BIT, 0 },
+    { "LTN", DEVICE_LTN, UNIT_DWORD, 0 },
+    { "STS", DEVICE_STS, UNIT_BIT, 0 },
+    { "STC", DEVICE_STC, UNIT_BIT, 0 },
+    { "STN", DEVICE_STN, UNIT_WORD, 0 },
+    { "LSTS", DEVICE_LSTS, UNIT_BIT, 0 },
+    { "LSTC", DEVICE_LSTC, UNIT_BIT, 0 },
+    { "LSTN", DEVICE_LSTN, UNIT_DWORD, 0 },
+    { "CS", DEVICE_CS, UNIT_BIT, 0 },
+    { "CC", DEVICE_CC, UNIT_BIT, 0 },
+    { "CN", DEVICE_CN, UNIT_WORD, 0 },
+    { "LCS", DEVICE_LCS, UNIT_BIT, 0 },
+    { "LCC", DEVICE_LCC, UNIT_BIT, 0 },
+    { "LCN", DEVICE_LCN, UNIT_DWORD, 0 },
+    { "SB", DEVICE_SB, UNIT_BIT, 1 },
+    { "SW", DEVICE_SW, UNIT_WORD, 1 },
+    { "DX", DEVICE_DX, UNIT_BIT, 1 },
+    { "DY", DEVICE_DY, UNIT_BIT, 1 },
+    { "Z", DEVICE_Z, UNIT_WORD, 0 },
+    { "LZ", DEVICE_LZ, UNIT_DWORD, 0 },
+    { "R", DEVICE_R, UNIT_WORD, 0 },
+    { "ZR", DEVICE_ZR, UNIT_WORD, 0 },
+    { "RD", DEVICE_RD, UNIT_WORD, 0 },
+    { NULL, 0, 0, 0 }
 };
 
 static int split_dev_addr(const char* addr, char* prefix, char* trailing)
@@ -1512,7 +1513,7 @@ static int split_dev_addr(const char* addr, char* prefix, char* trailing)
 }
 
 static int lookup_dev_type(const char* prefix, uint16_t* mem_type, 
-    int* unit_type)
+    int* unit_type, int* is_hex_addr)
 {
     size_t prefix_len;
     const struct dev_type_lookup_entry* entry;
@@ -1534,6 +1535,9 @@ static int lookup_dev_type(const char* prefix, uint16_t* mem_type,
 
     *mem_type = entry->mem_type;
     *unit_type = entry->unit_type;
+    if (is_hex_addr) {
+        *is_hex_addr = entry->is_hex_addr;
+    }
     return TRUE;
 }
 
@@ -1547,6 +1551,7 @@ static int cvt_dev_addr_l(const char* addr, uint16_t* mem_type,
     size_t trailing_len;
     size_t i;
     int offset;
+    int is_hex_addr = 0;
 
     do {
         trailing = malloc(addr_len + 1);
@@ -1563,17 +1568,27 @@ static int cvt_dev_addr_l(const char* addr, uint16_t* mem_type,
             break;
         }
 
-        for (i = 0; i != trailing_len; ++i) {
-            if (!isdigit(trailing[i])) {
-                break;
-            }
-        }
-
-        if (!lookup_dev_type(prefix, mem_type, unit_type)) {
+        if (!lookup_dev_type(prefix, mem_type, unit_type, &is_hex_addr)) {
             break;
         }
 
-        offset = atoi(trailing);
+        for (i = 0; i != trailing_len; ++i) {
+            if (is_hex_addr) {
+                if (!isxdigit(trailing[i])) {
+                    break;
+                }
+            } else {
+                if (!isdigit(trailing[i])) {
+                    break;
+                }
+            }
+        }
+
+        if (is_hex_addr) {
+            offset = (int)strtol(trailing, NULL, 16);
+        } else {
+            offset = atoi(trailing);
+        }
         *addr_begin = (uint32_t)offset;
 
         ret = TRUE;
