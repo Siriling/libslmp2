@@ -1480,36 +1480,47 @@ static const struct dev_type_lookup_entry {
 static int split_dev_addr(const char* addr, char* prefix, char* trailing)
 {
     size_t len = strlen(addr);
-    size_t i, j;
+    size_t leading_ws = 0;
+    size_t letters = 0;
+    size_t prefix_len;
+    size_t i;
 
     memset(prefix, 0, MAX_DEV_ADDR_PREFIX_LEN + 1);
     memset(trailing, 0, len + 1);
-    j = 0;
 
-    for (i = 0; i != len; ++i) {
-        char ch = addr[i];
-        
-        /* Skip spaces and tabs. */
-        if ((ch == '\x20') || (ch == '\t')) {
-            continue;
-        }
-
-        if (isalpha(ch)) {
-            prefix[j] = toupper(ch);
-            if (++j >= MAX_DEV_ADDR_PREFIX_LEN) {
-                break;
-            }
-        }
+    /* Skip leading spaces and tabs. */
+    while (leading_ws < len &&
+           ((addr[leading_ws] == '\x20') || (addr[leading_ws] == '\t'))) {
+        ++leading_ws;
     }
 
-    if (j == 0) {
+    /* Longest run of letters from the start is the candidate prefix. */
+    while (leading_ws + letters < len &&
+           isalpha((unsigned char)addr[leading_ws + letters]) &&
+           letters < MAX_DEV_ADDR_PREFIX_LEN) {
+        ++letters;
+    }
+
+    if (letters == 0) {
         return FALSE;
     }
-    else if (j < len) {
-        strlcpy(trailing, addr + j, len + 1);
+
+    /* Greedy match: try the longest prefix first so hex addresses (e.g. "XA"
+       -> X device @ 0xA, "DX1F" -> DX device @ 0x1F) split correctly.
+       The table lookup decides where the prefix actually ends. */
+    for (prefix_len = letters; prefix_len >= 1; --prefix_len) {
+        for (i = 0; i < prefix_len; ++i) {
+            prefix[i] = toupper((unsigned char)addr[leading_ws + i]);
+        }
+        prefix[prefix_len] = '\0';
+
+        if (lookup_dev_type(prefix, NULL, NULL, NULL)) {
+            strlcpy(trailing, addr + leading_ws + prefix_len, len + 1);
+            return TRUE;
+        }
     }
 
-    return TRUE;
+    return FALSE;
 }
 
 static int lookup_dev_type(const char* prefix, uint16_t* mem_type, 
@@ -1533,8 +1544,12 @@ static int lookup_dev_type(const char* prefix, uint16_t* mem_type,
         return FALSE;
     }
 
-    *mem_type = entry->mem_type;
-    *unit_type = entry->unit_type;
+    if (mem_type) {
+        *mem_type = entry->mem_type;
+    }
+    if (unit_type) {
+        *unit_type = entry->unit_type;
+    }
     if (is_hex_addr) {
         *is_hex_addr = entry->is_hex_addr;
     }
